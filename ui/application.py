@@ -1339,9 +1339,9 @@ def run_app():
         st.markdown(
             """
             <div class="login-header">
-                <div style="font-size: 2.2rem; margin-bottom: 4px;">📍</div>
-                <span class="login-kicker">TUMARSO · FIELD OPERATIONS</span>
-                <h1>PORTAL LAPORAN &amp; MONITORING</h1>
+                <div style="font-size: 2.2rem; margin-bottom: 4px;">📝</div>
+                <span class="login-kicker">AYU AGENCY</span>
+                <h1>APLIKASI LAPORAN &amp; MONITORING SPG</h1>
                 <p>Pantau aktivitas lapangan, jadwal tim, dan laporan penjualan dalam satu ruang kerja.</p>
             </div>
             """,
