@@ -152,7 +152,7 @@ aplikasi; halaman admin dipisahkan ke modul masing-masing.
 |---|---|
 | Rekap laporan konsumen | `rekap_laporan_spg.csv` |
 | Rekap kontak supervisi | `rekap_kontak_supervisi.csv` |
-| Jadwal SPG | `Jadwal SPG.xlsx` |
+| Jadwal SPG | `Jadwal SPG 1.1.xlsx` |
 | Detail penugasan jadwal | `jadwal_spg_detail.json` |
 | Nama team | `master_nama_team.json` |
 | Alokasi team dan merek | `master_team_brand.json` |

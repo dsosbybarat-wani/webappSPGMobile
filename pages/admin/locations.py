@@ -149,7 +149,7 @@ def render():
                             )
                             st.rerun()
         else:
-            st.info("Belum ada data jadwal pada `Jadwal SPG.xlsx`.")
+            st.info("Belum ada data jadwal pada `Jadwal SPG 1.1.xlsx`.")
 
     with tab_wrk_add:
         st.markdown("#### Tambah titik warkop / LKK baru")

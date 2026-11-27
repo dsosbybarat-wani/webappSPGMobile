@@ -88,6 +88,7 @@ from domain.target import (
 )
 from domain.schedule import (
     get_schedule_info_for_team,
+    get_schedule_team_names,
     get_scheduled_slots_for_date,
     load_jadwal_spg,
     normalize_text,
@@ -109,11 +110,17 @@ try:
     from schedule_entry import (
         SCHEDULE_DETAIL_FILE,
         get_scheduled_personnel_for_team,
+        get_scheduled_spg_names,
         get_scheduled_vehicles,
         render_schedule_entry,
     )
 except ImportError:
-    from schedule_entry import SCHEDULE_DETAIL_FILE, get_scheduled_vehicles, render_schedule_entry
+    from schedule_entry import (
+        SCHEDULE_DETAIL_FILE,
+        get_scheduled_spg_names,
+        get_scheduled_vehicles,
+        render_schedule_entry,
+    )
 
     def get_scheduled_personnel_for_team(team_name, target_date=None, selected_kecamatan=""):
         return {
@@ -734,6 +741,17 @@ def get_supervisi_points_today(
 def load_master_team_names():
     default_teams = {f"Team SPG {i}": f"Team SPG {i}" for i in range(1, 21)}
     data = _read_json_safe(MASTER_TEAM_NAME_FILE)
+    uses_placeholder_names = not isinstance(data, dict) or all(
+        str(data.get(key, key)).strip() == key for key in default_teams
+    )
+    scheduled_teams = get_schedule_team_names()[:20] if uses_placeholder_names else []
+    if uses_placeholder_names and scheduled_teams:
+        data = {
+            f"Team SPG {i}": scheduled_teams[i - 1] if i <= len(scheduled_teams) else ""
+            for i in range(1, 21)
+        }
+        save_master_team_names(data)
+        return data
     if not isinstance(data, dict):
         save_master_team_names(default_teams)
         return default_teams
@@ -839,7 +857,7 @@ def save_master_plat_kendaraan(plat_list):
 
 def load_master_spgs():
     data = _read_json_safe(MASTER_SPG_FILE)
-    return data if isinstance(data, list) else DEFAULT_SPGS
+    return data if isinstance(data, list) else get_scheduled_spg_names() or DEFAULT_SPGS
 
 
 def save_master_spgs(spgs):

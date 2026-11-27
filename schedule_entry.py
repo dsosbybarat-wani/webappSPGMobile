@@ -2,6 +2,8 @@ from team_brand_sync import (
     resolve_team_allowed_brands,
     sync_masters_from_schedule_upload,
 )
+from config.constants import DEFAULT_SPGS, JADWAL_SPG_FILE, MASTER_SPG_FILE
+from domain.schedule import get_schedule_team_names
 
 import json
 import re
@@ -14,13 +16,12 @@ import pandas as pd
 import streamlit as st
 
 
-SCHEDULE_FILE = "Jadwal_SPG_1.1.xlsx"
+SCHEDULE_FILE = JADWAL_SPG_FILE
 SCHEDULE_DETAIL_FILE = "jadwal_spg_detail.json"
 TEAM_NAMES_FILE = "master_nama_team.json"
 TEAM_BRANDS_FILE = "master_team_brand.json"
 BRANDS_FILE = "master_brand_rokok.json"
 VEHICLES_FILE = "master_plat_kendaraan.json"
-MASTER_SPG_FILE = "master_spg.json"
 CITIES = ["Surabaya", "Gresik"]
 WEEKDAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
 DEFAULT_VEHICLES = ["L 1234 ABC"]
@@ -52,13 +53,7 @@ def _cached_read_excel_file(path: str, mtime: float) -> pd.DataFrame:
     return frame
 
 
-@st.cache_data(show_spinner=False)
-def _cached_read_json_file(path: str, mtime: float):
-    with open(path, "r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def load_schedule():
+def _read_schedule_workbook() -> pd.DataFrame:
     if not os.path.exists(SCHEDULE_FILE):
         return pd.DataFrame(columns=["Kota", "Kecamatan"])
     try:
@@ -66,6 +61,18 @@ def load_schedule():
     except Exception as exc:
         st.error(f"Gagal membaca {SCHEDULE_FILE}: {exc}")
         return pd.DataFrame(columns=["Kota", "Kecamatan"])
+
+
+@st.cache_data(show_spinner=False)
+def _cached_read_json_file(path: str, mtime: float):
+    with open(path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def load_schedule():
+    frame = _read_schedule_workbook()
+    flat_schedule = _flat_schedule_as_matrix(frame)
+    return flat_schedule[0] if flat_schedule else frame
 
 
 def save_schedule(frame):
@@ -91,7 +98,25 @@ def read_json(path, fallback):
 
 def load_details():
     details = read_json(SCHEDULE_DETAIL_FILE, {})
-    return dict(details) if isinstance(details, dict) else {}
+    details = (
+        {
+            key: dict(value) if isinstance(value, dict) else value
+            for key, value in details.items()
+        }
+        if isinstance(details, dict)
+        else {}
+    )
+    raw_schedule = _read_schedule_workbook()
+    flat_schedule = _flat_schedule_as_matrix(raw_schedule)
+    if flat_schedule:
+        for key, record in flat_schedule[1].items():
+            saved = details.get(key)
+            if not isinstance(saved, dict):
+                details[key] = record
+            else:
+                for field, value in record.items():
+                    saved.setdefault(field, value)
+    return details
 
 
 def save_details(details):
@@ -116,7 +141,25 @@ def team_mapping():
 
 
 def team_choices():
-    return [team for team in team_mapping().values() if team]
+    teams = [team for team in team_mapping().values() if team]
+    if teams and not all(re.fullmatch(r"Team SPG \d+", team, flags=re.IGNORECASE) for team in teams):
+        return teams
+    return get_schedule_team_names() or teams
+
+
+def spg_choices():
+    master_spgs = read_json(MASTER_SPG_FILE, DEFAULT_SPGS)
+    if not isinstance(master_spgs, list):
+        master_spgs = DEFAULT_SPGS
+
+    choices = []
+    seen = set()
+    for value in [*master_spgs, *get_scheduled_spg_names()]:
+        name = clean_str_cell(value)
+        if name and name.casefold() not in seen:
+            seen.add(name.casefold())
+            choices.append(name)
+    return choices
 
 
 def schedule_team_names(frame, date_cols):
@@ -217,6 +260,54 @@ def assignment_key(work_date, city, district):
     return f"{date_column(work_date)}|{normalized_city}|{normalized_district}"
 
 
+def _flat_schedule_as_matrix(frame):
+    if frame is None or frame.empty:
+        return None
+
+    column_map = {str(column).strip().casefold(): column for column in frame.columns}
+    if not FLAT_SCHEDULE_REQUIRED_COLS.issubset(column_map):
+        return None
+
+    locations = {}
+    date_columns = set()
+    details = {}
+    for _, row in frame.iterrows():
+        work_date = parse_schedule_date(row.get(column_map["tanggal"]))
+        team = clean_str_cell(row.get(column_map["nama team"]))
+        city = clean_str_cell(row.get(column_map["kota"]))
+        district = clean_str_cell(row.get(column_map["sektor"]))
+        if work_date is None or not team or not city or not district:
+            continue
+
+        date_col = date_column(work_date)
+        date_columns.add(date_col)
+        location_key = (city.casefold(), district.casefold())
+        location = locations.setdefault(
+            location_key,
+            {"Kota": city, "Kecamatan": district},
+        )
+        location[date_col] = team
+
+        details[assignment_key(work_date, city, district)] = {
+            "tanggal": work_date.strftime("%Y-%m-%d"),
+            "kota": city,
+            "kecamatan": district,
+            "team": team,
+            "spg_1": clean_str_cell(row.get(column_map["nama spg 1"])),
+            "spg_2": clean_str_cell(row.get(column_map["nama spg 2"])),
+            "supervisi": clean_str_cell(row.get(column_map["nama supervisi"])),
+            "vehicle": clean_str_cell(row.get(column_map["kendaraan / plat nomor"])),
+            "brands": brands_for_team(team),
+        }
+
+    ordered_dates = sorted(date_columns)
+    matrix = pd.DataFrame(
+        list(locations.values()),
+        columns=["Kota", "Kecamatan", *ordered_dates],
+    )
+    return matrix, details
+
+
 def assignment_details(details, work_date, city, district, team):
     saved = details.get(assignment_key(work_date, city, district), {})
     saved = saved if isinstance(saved, dict) else {}
@@ -312,6 +403,20 @@ def get_scheduled_personnel_for_team(team_name: str, work_date, selected_kecamat
         "brands": brands,
         "records": matches,
     }
+
+
+def get_scheduled_spg_names() -> list[str]:
+    names = []
+    seen = set()
+    for record in load_details().values():
+        if not isinstance(record, dict):
+            continue
+        for field in ("spg_1", "spg_2"):
+            name = clean_str_cell(record.get(field, ""))
+            if name and name.casefold() not in seen:
+                seen.add(name.casefold())
+                names.append(name)
+    return names
 
 
 def parse_flat_schedule_header(column):
@@ -898,6 +1003,8 @@ def render_schedule_entry():
     details = load_details()
     teams = team_choices()
     vehicles = vehicle_choices()
+    spgs = spg_choices()
+    spg_options = ["", *spgs]
 
     districts_by_city = {c: get_geo_districts(c) for c in CITIES}
     team_brands_cache = {}
@@ -935,9 +1042,19 @@ def render_schedule_entry():
             with col_spv:
                 supervisi_name = st.text_input("Nama Supervisi", key="new_workday_spv")
             with col_spg1:
-                spg1_name = st.text_input("Nama SPG 1", key="new_workday_spg1")
+                spg1_name = st.selectbox(
+                    "Nama SPG 1",
+                    options=spg_options,
+                    format_func=lambda name: name or "Pilih SPG",
+                    key="new_workday_spg1",
+                )
             with col_spg2:
-                spg2_name = st.text_input("Nama SPG 2", key="new_workday_spg2")
+                spg2_name = st.selectbox(
+                    "Nama SPG 2",
+                    options=spg_options,
+                    format_func=lambda name: name or "Pilih SPG",
+                    key="new_workday_spg2",
+                )
 
             districts = st.multiselect("Sektor / Kecamatan yang dijadwalkan", districts_by_city.get(city, []), key="new_workday_districts")
             col_vehicle, col_brands = st.columns(2)
@@ -989,9 +1106,19 @@ def render_schedule_entry():
             with col_w_spv:
                 week_spv = st.text_input("Nama Supervisi", key="new_week_spv")
             with col_w_spg1:
-                week_spg1 = st.text_input("Nama SPG 1", key="new_week_spg1")
+                week_spg1 = st.selectbox(
+                    "Nama SPG 1",
+                    options=spg_options,
+                    format_func=lambda name: name or "Pilih SPG",
+                    key="new_week_spg1",
+                )
             with col_w_spg2:
-                week_spg2 = st.text_input("Nama SPG 2", key="new_week_spg2")
+                week_spg2 = st.selectbox(
+                    "Nama SPG 2",
+                    options=spg_options,
+                    format_func=lambda name: name or "Pilih SPG",
+                    key="new_week_spg2",
+                )
 
             st.info(f"Periode minggu: {week_start.strftime('%d %b %Y')} – {week_end.strftime('%d %b %Y')}")
             workdays = st.multiselect("Hari kerja", WEEKDAYS, default=WEEKDAYS[:5], key="new_week_days")
@@ -1111,9 +1238,26 @@ def render_schedule_entry():
                         with col_spv_e:
                             edited_spv = st.text_input("Nama Supervisi", value=entry["supervisi"], key=f"spv_{entry_id}")
                         with col_spg1_e:
-                            edited_spg1 = st.text_input("Nama SPG 1", value=entry["spg_1"], key=f"spg1_{entry_id}")
+                            edit_spg_options = ["", *spgs]
+                            if entry["spg_1"] and entry["spg_1"] not in edit_spg_options:
+                                edit_spg_options.append(entry["spg_1"])
+                            edited_spg1 = st.selectbox(
+                                "Nama SPG 1",
+                                options=edit_spg_options,
+                                index=edit_spg_options.index(entry["spg_1"]) if entry["spg_1"] in edit_spg_options else 0,
+                                format_func=lambda name: name or "Pilih SPG",
+                                key=f"spg1_{entry_id}",
+                            )
                         with col_spg2_e:
-                            edited_spg2 = st.text_input("Nama SPG 2", value=entry["spg_2"], key=f"spg2_{entry_id}")
+                            if entry["spg_2"] and entry["spg_2"] not in edit_spg_options:
+                                edit_spg_options.append(entry["spg_2"])
+                            edited_spg2 = st.selectbox(
+                                "Nama SPG 2",
+                                options=edit_spg_options,
+                                index=edit_spg_options.index(entry["spg_2"]) if entry["spg_2"] in edit_spg_options else 0,
+                                format_func=lambda name: name or "Pilih SPG",
+                                key=f"spg2_{entry_id}",
+                            )
 
                         col_vehicle_edit, col_brands_edit = st.columns(2)
                         with col_vehicle_edit:
