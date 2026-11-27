@@ -1,4 +1,5 @@
 from config.constants import DB_FILE, DB_SUPERVISI_KONTAK_FILE
+from domain.target import get_target_for_brand
 from ui.application import (
     add_custom_week_columns,
     clean_brand_target_name,
