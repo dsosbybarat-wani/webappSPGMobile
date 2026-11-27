@@ -1,9 +1,9 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Laporan Dirsell SPG",
+    page_title="Tumarso | Laporan & Monitoring",
     page_icon="📍",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="collapsed",
 )
 

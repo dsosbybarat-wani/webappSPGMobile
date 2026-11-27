@@ -1340,8 +1340,9 @@ def run_app():
             """
             <div class="login-header">
                 <div style="font-size: 2.2rem; margin-bottom: 4px;">📍</div>
+                <span class="login-kicker">TUMARSO · FIELD OPERATIONS</span>
                 <h1>PORTAL LAPORAN &amp; MONITORING</h1>
-                <p>Sistem Pelaporan Lapangan SPG &amp; Supervisi</p>
+                <p>Pantau aktivitas lapangan, jadwal tim, dan laporan penjualan dalam satu ruang kerja.</p>
             </div>
             """,
             unsafe_allow_html=True,
