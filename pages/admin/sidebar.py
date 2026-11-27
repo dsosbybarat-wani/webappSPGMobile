@@ -20,9 +20,9 @@ def render():
                     else:
                         st.error("❌ Password salah!")
         else:
-            st.success("🟢 Mode Admin Aktif")
+            st.success("🟢 :red[Mode Admin Aktif]")
 
-            st.markdown("##### 📊 Monitoring & Laporan")
+            st.markdown("##### 📊 :red[Monitoring & Laporan]")
             if st.button("🏠 Dashboard Utama", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Dashboard" else "secondary"):
                 st.session_state["admin_view"] = "Dashboard"
                 st.rerun()
@@ -36,7 +36,7 @@ def render():
                 st.session_state["admin_view"] = "Peta_Rute"
                 st.rerun()
 
-            st.markdown("##### ⚙️ Master Data")
+            st.markdown("##### ⚙️ :red[Master Data]")
             if st.button("🔑 PIN & Hak Akses User", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Master_Akses" else "secondary"):
                 st.session_state["admin_view"] = "Master_Akses"
                 st.rerun()
