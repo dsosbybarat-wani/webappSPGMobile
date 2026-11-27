@@ -2301,22 +2301,26 @@ def run_app():
 
     df_all = load_database()
     if not df_all.empty and "Promotor" in df_all.columns:
-        df_user = df_all[df_all["Promotor"] == st.session_state["user_spg"]].copy()
+        df_team_user = df_all[df_all["Promotor"] == st.session_state["user_spg"]].copy()
     else:
-        df_user = pd.DataFrame(columns=EXPECTED_COLUMNS)
+        df_team_user = pd.DataFrame(columns=EXPECTED_COLUMNS)
 
+    if not df_team_user.empty:
+        df_team_user["Waktu_Dt"] = pd.to_datetime(df_team_user["Waktu"], errors="coerce")
+        df_team_user["Tanggal"] = df_team_user["Waktu_Dt"].dt.strftime("%d-%m-%Y")
+        df_team_user = add_custom_week_columns(df_team_user, "Waktu_Dt")
+        df_team_user["Jumlah_Bungkus"] = pd.to_numeric(
+            df_team_user["Jumlah_Bungkus"], errors="coerce"
+        ).fillna(0)
+
+    df_user = df_team_user.copy()
     active_spg_name = str(nama_spg_manual or "").strip()
     if active_spg_name and "Nama_SPG" in df_user.columns:
         df_user = df_user[
             df_user["Nama_SPG"].astype(str).str.strip() == active_spg_name
         ].copy()
 
-    if not df_user.empty:
-        df_user["Waktu_Dt"] = pd.to_datetime(df_user["Waktu"], errors="coerce")
-        df_user["Tanggal"] = df_user["Waktu_Dt"].dt.strftime("%d-%m-%Y")
-        df_user = add_custom_week_columns(df_user, "Waktu_Dt")
-        df_user["Jumlah_Bungkus"] = pd.to_numeric(df_user["Jumlah_Bungkus"], errors="coerce").fillna(0)
-
+    if not df_user.empty or not df_team_user.empty:
         today_dt = datetime.utcnow() + timedelta(hours=7)
         today_str = today_dt.strftime("%d-%m-%Y")
         current_week_label, _ = get_custom_week_info(today_dt)
@@ -2492,13 +2496,19 @@ def run_app():
         st.markdown("---")
         st.markdown("### 🏆 Pencapaian Team SPG (Berdasarkan Target Team)")
 
+        all_weeks_team_u = sorted(
+            df_team_user["Periode_Minggu"].dropna().unique().tolist(), reverse=True
+        )
+        all_dates_team_u = sorted(
+            df_team_user["Tanggal"].dropna().unique().tolist(), reverse=True
+        )
         col_tm_w, col_tm_tgl = st.columns(2)
         with col_tm_w:
-            filter_tm_week = st.multiselect("Filter Periode Minggu (Pencapaian Team)", options=all_weeks_u, default=all_weeks_u, key="user_tm_week")
+            filter_tm_week = st.multiselect("Filter Periode Minggu (Pencapaian Team)", options=all_weeks_team_u, default=all_weeks_team_u, key="user_tm_week")
         with col_tm_tgl:
-            filter_tm_tgl = st.multiselect("Filter Tanggal (Pencapaian Team)", options=all_dates_u, default=all_dates_u, key="user_tm_tgl")
+            filter_tm_tgl = st.multiselect("Filter Tanggal (Pencapaian Team)", options=all_dates_team_u, default=all_dates_team_u, key="user_tm_tgl")
 
-        df_tm_filtered = df_user.copy()
+        df_tm_filtered = df_team_user.copy()
         if filter_tm_week:
             df_tm_filtered = df_tm_filtered[df_tm_filtered["Periode_Minggu"].isin(filter_tm_week)]
         if filter_tm_tgl:
