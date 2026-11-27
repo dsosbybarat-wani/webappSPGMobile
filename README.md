@@ -22,7 +22,7 @@ flowchart TB
     SUP["Supervisor Lapangan\nBrowser Mobile/Desktop"]
     ADM["Admin\nBrowser"]
     GPS["Browser Geolocation API"]
-    ST["Streamlit Application\nreportspg.py + schedule_entry.py"]
+    ST["Streamlit Application\nreportspg.py → ui/application.py"]
     GEO["GeoJSON Wilayah\nSurabaya Barat / Gresik"]
     LOCAL["Penyimpanan Lokal\nCSV, Excel, dan JSON"]
     SHEET["Google Spreadsheet"]
@@ -46,11 +46,27 @@ flowchart TB
 
 | Komponen | Lokasi | Tanggung Jawab |
 |---|---|---|
-| UI dan alur login | `reportspg.py` | Autentikasi lokal, sesi pengguna, form SPG, supervisi, admin, dashboard, dan analitik |
-| Modul jadwal | `schedule_entry.py` | Membaca/menulis jadwal, master team, alokasi kendaraan dan merek, serta kecamatan terjadwal |
+| Entry point | `reportspg.py` | Mengatur konfigurasi Streamlit lalu memanggil aplikasi |
+| UI aplikasi | `ui/application.py` | Mengatur alur utama SPG, supervisi, routing, dan laporan |
+| Routing admin | `pages/admin/router.py` | Memetakan pilihan halaman admin ke renderer masing-masing |
+| Halaman admin | `pages/admin/*.py` | Implementasi dashboard, master data, jadwal, analitik, dan peta |
+| Komponen UI | `ui/components.py` | Helper kartu dashboard dan kotak alamat |
+| Tema UI | `ui/theme.py` | Palet warna tim dan CSS tema/global |
+| Konfigurasi aplikasi | `config/constants.py` | Path data, kolom laporan, dan nilai default |
+| Autentikasi dan sesi | `core/auth.py` | Verifikasi PIN, autentikasi admin, dan reset sesi pengguna |
+| Penyimpanan dan cache | `core/storage.py` | Pembacaan/penulisan CSV, Excel, JSON, serta cache data |
+| Backup cloud | `core/backup.py` | Serialisasi data dan koneksi Google Sheets/Supabase |
+| Geografi | `geo/loader.py` | Pencarian GeoJSON kecamatan dan pemrosesan geometri |
+| Domain jadwal | `domain/schedule.py` | Pembacaan jadwal dan pencarian penugasan |
+| Domain target | `domain/target.py` | Aturan target merek dan pengelompokan target |
+| Form dan master jadwal | `schedule_entry.py` | Entry jadwal, alokasi kendaraan/merek, dan detail penugasan |
 | Penyimpanan operasional | `*.csv`, `*.xlsx`, `*.json` | Menyimpan rekap laporan, kontak supervisi, jadwal, master data, dan detail penugasan |
 | Batas geografis | `Surabaya Barat.geojson`, `Gresik.geojson` | Memvalidasi posisi pengguna terhadap wilayah kerja |
 | Sinkronisasi awan | Google Apps Script + Google Spreadsheet; Supabase REST API | Backup dan pemuatan data melalui Google Sheets, serta snapshot backup ke Supabase |
+
+Alur SPG dan supervisi, rekap laporan, serta beberapa helper aplikasi tetap berada di
+`ui/application.py`. Entry point hanya menginisialisasi Streamlit dan menjalankan
+aplikasi; halaman admin dipisahkan ke modul masing-masing.
 
 ## Alur Data
 
