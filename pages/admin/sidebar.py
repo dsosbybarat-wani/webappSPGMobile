@@ -38,6 +38,9 @@ def render():
             if st.button("🧾 Edit & Hapus Laporan", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Master_Laporan" else "secondary"):
                 st.session_state["admin_view"] = "Master_Laporan"
                 st.rerun()
+            if st.button("🛠️ SQL Editor Supabase", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Supabase_SQL" else "secondary"):
+                st.session_state["admin_view"] = "Supabase_SQL"
+                st.rerun()
 
             st.markdown("##### ⚙️ :red[Master Data]")
             if st.button("🔑 PIN & Hak Akses User", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Master_Akses" else "secondary"):

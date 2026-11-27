@@ -70,6 +70,11 @@ from core.storage import (
     save_supervisi_database,
     write_json_atomic,
 )
+from core.supabase_sync import (
+    enqueue_supabase_entry,
+    flush_supabase_entry_queue,
+    pending_supabase_entry_count,
+)
 from domain.target import (
     TARGET_RULES,
     clean_brand_target_name,
@@ -439,9 +444,43 @@ def get_saved_contact_warkops_on_date(
 
 
 
+def _sync_new_entry_to_supabase(entry_type, data, warning_key):
+    try:
+        enqueue_supabase_entry(entry_type, data)
+        flush_supabase_entry_queue()
+        pending_count = pending_supabase_entry_count()
+        if pending_count:
+            st.session_state[warning_key] = (
+                f"{pending_count} entry tersimpan lokal dan masih menunggu sinkronisasi Supabase."
+            )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        st.session_state[warning_key] = (
+            f"Data tersimpan lokal, tetapi sinkronisasi Supabase tertunda: {exc}"
+        )
+
+
 def render_google_sheet_backup_controls():
     with st.expander("☁️ Backup & Load Data", expanded=False):
         st.caption("Backup data aplikasi ke Google Spreadsheet atau Supabase.")
+
+        try:
+            pending_entries = pending_supabase_entry_count()
+        except RuntimeError as exc:
+            pending_entries = 0
+            st.error(str(exc))
+        if pending_entries:
+            st.warning(f"Ada {pending_entries} entry yang belum tersinkron ke Supabase.")
+            if st.button("🔁 Coba sinkronkan entry tertunda", key="retry_supabase_entries"):
+                try:
+                    with st.spinner("Menyinkronkan entry tertunda ke Supabase..."):
+                        flush_supabase_entry_queue()
+                        remaining_entries = pending_supabase_entry_count()
+                    if remaining_entries:
+                        st.warning(f"{remaining_entries} entry masih menunggu sinkronisasi.")
+                    else:
+                        st.success("Semua entry tertunda berhasil disinkronkan.")
+                except (OSError, RuntimeError) as exc:
+                    st.error(f"Gagal menyinkronkan entry tertunda: {exc}")
 
         col_backup_gs, col_backup_supabase = st.columns(2)
         with col_backup_gs:
@@ -1814,6 +1853,11 @@ def run_app():
                     }
                     df_sup_db = pd.concat([df_sup_db, pd.DataFrame([new_sup_row])], ignore_index=True)
                     save_supervisi_database(df_sup_db)
+                    _sync_new_entry_to_supabase(
+                        "supervisor_report",
+                        new_sup_row,
+                        "sup_sync_warning",
+                    )
                     clear_locked_lkk_point(st.session_state["user_spg"])
                     st.session_state["sup_kontak_nonce"] = sup_nonce + 1
                     st.session_state["sup_last_saved_msg"] = (
@@ -1824,6 +1868,8 @@ def run_app():
 
         if st.session_state.get("sup_last_saved_msg"):
             st.success(st.session_state.pop("sup_last_saved_msg"))
+        if st.session_state.get("sup_sync_warning"):
+            st.warning(st.session_state.pop("sup_sync_warning"))
 
         # --- LIST WARKOP WAJIB KUNJUNG YANG BELUM DIKUNJUNGI DI BAWAH DASHBOARD SUPERVISI ---
         st.markdown("#### 📌 List Warkop Wajib Kunjung yang Belum Dikunjungi Hari Ini")
@@ -2076,6 +2122,9 @@ def run_app():
             st.session_state["show_titik_lkk_spg"] = False
             st.rerun()
 
+    if st.session_state.get("spg_sync_warning"):
+        st.warning(st.session_state.pop("spg_sync_warning"))
+
     # --- 2. FORM INPUT KONSUMEN ---
     if not has_locked_lkk:
         st.error(
@@ -2241,6 +2290,11 @@ def run_app():
                     df_new_row = pd.DataFrame([data_baru])
                     df_all = pd.concat([df_all, df_new_row], ignore_index=True)
                     save_database(df_all)
+                    _sync_new_entry_to_supabase(
+                        "spg_sale",
+                        data_baru,
+                        "spg_sync_warning",
+                    )
 
                     st.session_state["draft_konsumen"] = ""
                     st.session_state["draft_nohp"] = ""

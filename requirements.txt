@@ -7,3 +7,5 @@ streamlit-js-eval
 shapely>=2,<3
 pydeck
 supabase
+psycopg[binary]>=3.2,<4
+sqlparse>=0.5,<1

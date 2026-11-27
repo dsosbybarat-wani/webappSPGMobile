@@ -1,4 +1,4 @@
-from . import access, team_names, vehicles, team_brands, spgs, brands_targets, prices, locations, schedule, analytics, map, dashboard, records
+from . import access, team_names, vehicles, team_brands, spgs, brands_targets, prices, locations, schedule, analytics, map, dashboard, records, sql_editor
 
 
 ADMIN_PAGES = {
@@ -14,6 +14,7 @@ ADMIN_PAGES = {
     'Analitik': analytics.render,
     'Peta_Rute': map.render,
     'Master_Laporan': records.render,
+    'Supabase_SQL': sql_editor.render,
 }
 
 

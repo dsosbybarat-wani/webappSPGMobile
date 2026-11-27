@@ -5,6 +5,7 @@ WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzk6tqiNonaArNjJt7X0IIhja
 
 DB_FILE = "rekap_laporan_spg.csv"
 DB_SUPERVISI_KONTAK_FILE = "rekap_kontak_supervisi.csv"
+SUPABASE_ENTRY_QUEUE_FILE = "supabase_entry_sync_queue.json"
 MASTER_BRAND_FILE = "master_brand_rokok.json"
 MASTER_TARGET_FILE = "master_target_brand.json"
 MASTER_HARGA_FILE = "master_harga_konsumen.json"

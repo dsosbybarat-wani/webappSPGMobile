@@ -155,6 +155,28 @@ ADMIN_PASSWORD = "<strong-random-password>"
    snapshot, termasuk CSV, Excel, dan master JSON. Pemuatan Google Sheets tetap
    tersedia secara terpisah.
 
+### Sinkronisasi Entry SPG dan Supervisi
+
+Entry baru penjualan SPG dan laporan Supervisi dikirim satu per satu ke
+`public.app_entries`; entry lama tidak ditulis ulang. Buat tabel ini di Supabase
+SQL Editor satu kali:
+
+```sql
+create table if not exists public.app_entries (
+    id uuid primary key,
+    entry_type text not null check (entry_type in ('spg_sale', 'supervisor_report')),
+    created_at timestamptz not null default now(),
+    data jsonb not null
+);
+
+alter table public.app_entries enable row level security;
+```
+
+Sinkronisasi menggunakan `SUPABASE_URL` dan `SUPABASE_KEY` yang sama dengan
+snapshot backup. Kunci service-role tetap hanya disimpan di Streamlit secrets atau
+environment. Jika Supabase tidak tersedia, entry tetap tersimpan lokal dan menunggu
+pengiriman ulang; ID unik mencegah duplikasi saat pengiriman dicoba kembali.
+
 ## Penyimpanan dan Entitas
 
 | Entitas | Sumber Penyimpanan |
