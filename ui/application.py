@@ -2333,10 +2333,10 @@ def run_app():
                 .reset_index()
                 .rename(columns={"Brand_Rokok_Clean": "Brand_Rokok"})
             )
-            df_today_u_lb["Target_Team"] = df_today_u_lb["Brand_Rokok"].apply(
-                lambda brand: get_target_for_brand(brand, "target_team", 50)
+            df_today_u_lb["Target_SPG"] = df_today_u_lb["Brand_Rokok"].apply(
+                lambda brand: get_target_for_brand(brand, "target_spg", 25)
             )
-            target_hari_ini_u = int(df_today_u_lb["Target_Team"].sum())
+            target_hari_ini_u = int(df_today_u_lb["Target_SPG"].sum())
         else:
             target_hari_ini_u = 100
 
@@ -2360,7 +2360,7 @@ def run_app():
                 f"""
                 <div>
                     <div class="card-value">{omset_hari_ini_u:,} bks</div>
-                    <div class="card-subtext">dari {target_hari_ini_u} target bks</div>
+                    <div class="card-subtext">dari {target_hari_ini_u} target SPG bks</div>
                 </div>""",
                 "Omset Hari Ini",
             )
