@@ -1,6 +1,5 @@
+from config.constants import DB_FILE, DB_SUPERVISI_KONTAK_FILE
 from ui.application import (
-    DB_FILE,
-    DB_SUPERVISI_KONTAK_FILE,
     add_custom_week_columns,
     clean_brand_target_name,
     datetime,
