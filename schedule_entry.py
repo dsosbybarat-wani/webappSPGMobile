@@ -3,6 +3,7 @@ from team_brand_sync import (
     sync_masters_from_schedule_upload,
 )
 from config.constants import DEFAULT_SPGS, JADWAL_SPG_FILE, MASTER_SPG_FILE
+from core.auth import load_master_akses
 from domain.schedule import get_schedule_team_names
 
 import json
@@ -159,6 +160,27 @@ def spg_choices():
             seen.add(name.casefold())
             choices.append(name)
     return choices
+
+
+def supervisi_choices(details=None):
+    schedule_details = details if isinstance(details, dict) else load_details()
+    names = []
+    for record in schedule_details.values():
+        if isinstance(record, dict):
+            names.append(record.get("supervisi", ""))
+
+    access_config = load_master_akses()
+    names.extend((access_config.get("supervisi_pins") or {}).keys())
+    choices = []
+    seen = set()
+    for name in names:
+        cleaned = clean_str_cell(name)
+        normalized = cleaned.casefold()
+        if not cleaned or normalized == "-" or normalized in seen:
+            continue
+        seen.add(normalized)
+        choices.append(cleaned)
+    return sorted(choices, key=str.casefold)
 
 
 def schedule_team_names(frame, date_cols):
@@ -1004,6 +1026,19 @@ def render_schedule_entry():
     vehicles = vehicle_choices()
     spgs = spg_choices()
     spg_options = ["", *spgs]
+    supervisors = supervisi_choices(details)
+
+    def select_supervisor(key):
+        add_new_option = "➕ Tambah nama baru"
+        selected_name = st.selectbox(
+            "Nama Supervisi",
+            options=["", *supervisors, add_new_option],
+            format_func=lambda name: name or "Pilih nama Supervisi",
+            key=f"{key}_choice",
+        )
+        if selected_name == add_new_option:
+            return st.text_input("Nama Supervisi baru", key=f"{key}_new").strip()
+        return selected_name
 
     districts_by_city = {c: get_geo_districts(c) for c in CITIES}
     team_brands_cache = {}
@@ -1028,18 +1063,18 @@ def render_schedule_entry():
     with tab_day:
         st.markdown("#### Buat jadwal untuk satu hari")
         st.caption("Data team, personel SPG/Supervisi, merek rokok, dan kendaraan tersimpan otomatis.")
-        with st.form("form_add_schedule_day"):
-            col_date, col_city, col_team = st.columns(3)
-            with col_date:
-                work_date = st.date_input("Tanggal kerja", value=date.today(), key="new_workday_date")
-            with col_city:
-                city = st.selectbox("Kota / Kabupaten", CITIES, key="new_workday_city")
-            with col_team:
-                team = st.selectbox("Master Team SPG", teams, key="new_workday_team")
+        col_date, col_city, col_team = st.columns(3)
+        with col_date:
+            work_date = st.date_input("Tanggal kerja", value=date.today(), key="new_workday_date")
+        with col_city:
+            city = st.selectbox("Kota / Kabupaten", CITIES, key="new_workday_city")
+        with col_team:
+            team = st.selectbox("Master Team SPG", teams, key="new_workday_team")
 
-            col_spv, col_spg1, col_spg2 = st.columns(3)
-            with col_spv:
-                supervisi_name = st.text_input("Nama Supervisi", key="new_workday_spv")
+        supervisi_name = select_supervisor("new_workday_spv")
+        day_brand_opts = _get_brands(team)
+        with st.form("form_add_schedule_day"):
+            col_spg1, col_spg2 = st.columns(2)
             with col_spg1:
                 spg1_name = st.selectbox(
                     "Nama SPG 1",
@@ -1055,17 +1090,20 @@ def render_schedule_entry():
                     key="new_workday_spg2",
                 )
 
-            districts = st.multiselect("Sektor / Kecamatan yang dijadwalkan", districts_by_city.get(city, []), key="new_workday_districts")
+            districts = st.multiselect(
+                "Sektor / Kecamatan yang dijadwalkan",
+                districts_by_city.get(city, []),
+                key=f"new_workday_districts_{city}",
+            )
             col_vehicle, col_brands = st.columns(2)
             with col_vehicle:
                 vehicle = st.selectbox("Kendaraan / Plat Nomor", vehicles, key="new_workday_vehicle")
             with col_brands:
-                day_brand_opts = _get_brands(team)
                 brands = st.multiselect(
                     "Rokok yang dibawa",
                     day_brand_opts,
                     default=day_brand_opts,
-                    key="new_workday_brands",
+                    key=f"new_workday_brands_{team}",
                     help="Pilihan merek mengikuti alokasi pada Master Team & Brand.",
                 )
             submit_day = st.form_submit_button("💾 Simpan Jadwal Hari Ini", type="primary")
@@ -1090,20 +1128,21 @@ def render_schedule_entry():
     with tab_week:
         st.markdown("#### Buat jadwal satu minggu")
         st.caption("Pilih hari kerja, sektor/kecamatan, team, personel, merek, dan kendaraan.")
-        with st.form("form_add_schedule_week"):
-            col_anchor, col_city, col_team = st.columns(3)
-            with col_anchor:
-                week_anchor = st.date_input("Tanggal dalam minggu tujuan", value=date.today(), key="new_week_anchor")
-            week_start = week_anchor - timedelta(days=week_anchor.weekday())
-            week_end = week_start + timedelta(days=6)
-            with col_city:
-                week_city = st.selectbox("Kota / Kabupaten", CITIES, key="new_week_city")
-            with col_team:
-                week_team = st.selectbox("Master Team SPG", teams, key="new_week_team")
+        col_anchor, col_city, col_team = st.columns(3)
+        with col_anchor:
+            week_anchor = st.date_input("Tanggal dalam minggu tujuan", value=date.today(), key="new_week_anchor")
+        week_start = week_anchor - timedelta(days=week_anchor.weekday())
+        week_end = week_start + timedelta(days=6)
+        with col_city:
+            week_city = st.selectbox("Kota / Kabupaten", CITIES, key="new_week_city")
+        with col_team:
+            week_team = st.selectbox("Master Team SPG", teams, key="new_week_team")
 
-            col_w_spv, col_w_spg1, col_w_spg2 = st.columns(3)
-            with col_w_spv:
-                week_spv = st.text_input("Nama Supervisi", key="new_week_spv")
+        week_spv = select_supervisor("new_week_spv")
+        week_brand_opts = _get_brands(week_team)
+        st.info(f"Periode minggu: {week_start.strftime('%d %b %Y')} – {week_end.strftime('%d %b %Y')}")
+        with st.form("form_add_schedule_week"):
+            col_w_spg1, col_w_spg2 = st.columns(2)
             with col_w_spg1:
                 week_spg1 = st.selectbox(
                     "Nama SPG 1",
@@ -1119,17 +1158,19 @@ def render_schedule_entry():
                     key="new_week_spg2",
                 )
 
-            st.info(f"Periode minggu: {week_start.strftime('%d %b %Y')} – {week_end.strftime('%d %b %Y')}")
             workdays = st.multiselect("Hari kerja", WEEKDAYS, default=WEEKDAYS[:5], key="new_week_days")
-            week_districts = st.multiselect("Sektor / Kecamatan yang dijadwalkan", districts_by_city.get(week_city, []), key="new_week_districts")
+            week_districts = st.multiselect(
+                "Sektor / Kecamatan yang dijadwalkan",
+                districts_by_city.get(week_city, []),
+                key=f"new_week_districts_{week_city}",
+            )
             col_vehicle_week, col_brands_week = st.columns(2)
             with col_vehicle_week:
                 week_vehicle = st.selectbox("Kendaraan / Plat Nomor", vehicles, key="new_week_vehicle")
             with col_brands_week:
-                week_brand_opts = _get_brands(week_team)
                 week_brands = st.multiselect(
                     "Rokok yang dibawa", week_brand_opts, default=week_brand_opts,
-                    key="new_week_brands", help="Pilihan merek mengikuti alokasi pada Master Team & Brand.",
+                    key=f"new_week_brands_{week_team}", help="Pilihan merek mengikuti alokasi pada Master Team & Brand.",
                 )
             submit_week = st.form_submit_button("🗓️ Buat Jadwal Mingguan", type="primary")
         if submit_week:
