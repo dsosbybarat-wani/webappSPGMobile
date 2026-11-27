@@ -16,11 +16,13 @@
   },
   "D.76 Apel Royal": {
     "target_spg": 40,
-    "target_team": 80
+    "target_team": 80,
+    "group": "D_76_Apel"
   },
   "D.76 Apel": {
     "target_spg": 30,
-    "target_team": 60
+    "target_team": 60,
+    "group": "D_76_Apel"
   },
   "Djarum 76 Aksara": {
     "target_spg": 30,

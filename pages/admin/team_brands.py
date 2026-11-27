@@ -6,6 +6,7 @@ from ui.application import (
     save_master_team_brands,
     st,
 )
+from team_brand_sync import match_brands_by_team_name
 
 
 def render():
@@ -35,13 +36,14 @@ def render():
     )
 
     current_assigned_brands = team_brands_dict.get(selected_team_config, [])
-    valid_defaults = [b for b in current_assigned_brands if b in all_available_brands]
+    team_brand_options = match_brands_by_team_name(selected_team_config, all_available_brands)
+    valid_defaults = [b for b in current_assigned_brands if b in team_brand_options]
 
     with st.form(key=f"form_config_{selected_team_config}"):
         st.markdown(f"#### Alokasi Merek untuk `{selected_team_config}`")
         selected_brands_input = st.multiselect(
             "Pilih Brand Rokok yang Diizinkan",
-            options=all_available_brands,
+            options=team_brand_options,
             default=valid_defaults,
             key=f"ms_brands_{selected_team_config}",
         )

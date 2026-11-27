@@ -102,8 +102,8 @@ DEFAULT_TARGET_RULES = {
     "Black Matcha K12": {"target_spg": 40, "target_team": 80, "group": "Black_Matcha"},
     "D.Super 12": {"target_spg": 40, "target_team": 80, "group": "D_Super"},
     "D.Super Kretek": {"target_spg": 40, "target_team": 80, "group": "D_Super"},
-    "D.76 Apel Royal": {"target_spg": 40, "target_team": 80},
-    "D.76 Apel": {"target_spg": 30, "target_team": 60},
+    "D.76 Apel Royal": {"target_spg": 40, "target_team": 80, "group": "D_76_Apel"},
+    "D.76 Apel": {"target_spg": 30, "target_team": 60, "group": "D_76_Apel"},
     "Djarum 76 Aksara": {"target_spg": 30, "target_team": 60},
     "Black Matcha Siro": {"target_spg": 40, "target_team": 80, "group": "Black_Matcha"},
     "Black Matcha Kuro": {"target_spg": 40, "target_team": 80, "group": "Black_Matcha"},
@@ -111,11 +111,13 @@ DEFAULT_TARGET_RULES = {
 
 TARGET_GROUP_LABELS = {
     "D_Super": "D. Super (Gabungan)",
+    "D_76_Apel": "D.76 Apel & Apel Royal (Gabungan)",
     "Black_Matcha": "Black Matcha (Gabungan)",
     "Black_Siro_Kuro": "Black Matcha (Gabungan)",
 }
 TARGET_GROUP_OPTIONS = {
     "": "Tidak digabungkan",
     "D_Super": TARGET_GROUP_LABELS["D_Super"],
+    "D_76_Apel": TARGET_GROUP_LABELS["D_76_Apel"],
     "Black_Matcha": TARGET_GROUP_LABELS["Black_Matcha"],
 }

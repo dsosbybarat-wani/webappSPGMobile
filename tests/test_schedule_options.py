@@ -11,6 +11,7 @@ class ScheduleOptionTests(unittest.TestCase):
             "Black Matcha Siro",
             "D.Super 12",
             "D.Super Kretek",
+            "D.76 Apel",
             "D.76 Apel Royal",
             "Djarum 76 Aksara",
         ]
@@ -21,9 +22,11 @@ class ScheduleOptionTests(unittest.TestCase):
         ):
             matcha = brands_for_team("Team Matcha AA 1")
             super_team = brands_for_team("Team Super AA 1")
+            apel_team = brands_for_team("Team Apel Royal AA 1")
 
         self.assertEqual(matcha, ["Black Matcha K12", "Black Matcha Siro"])
         self.assertEqual(super_team, ["D.Super 12", "D.Super Kretek"])
+        self.assertEqual(apel_team, ["D.76 Apel", "D.76 Apel Royal"])
 
     @patch(
         "schedule_entry.load_master_akses",
