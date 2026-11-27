@@ -2317,6 +2317,11 @@ def run_app():
         current_month_str = today_dt.strftime("%m-%Y")
 
         df_today_u = df_user[df_user["Tanggal"] == today_str].copy()
+        active_spg_name = str(nama_spg_manual or "").strip()
+        if active_spg_name and "Nama_SPG" in df_today_u.columns:
+            df_today_u = df_today_u[
+                df_today_u["Nama_SPG"].astype(str).str.strip() == active_spg_name
+            ].copy()
         omset_hari_ini_u = int(df_today_u["Jumlah_Bungkus"].sum())
         konsumen_hari_ini_u = len(df_today_u)
 
@@ -2344,6 +2349,12 @@ def run_app():
             target_hari_ini_u = 100
 
         persen_pencapaian_u = int((omset_hari_ini_u / target_hari_ini_u) * 100) if target_hari_ini_u > 0 else 0
+        status_target_spg_u = (
+            "Achieved"
+            if omset_hari_ini_u >= target_hari_ini_u
+            else "Not Achieved"
+        )
+        status_target_spg_style_u = style_status_target(status_target_spg_u)
 
         df_week_u = df_user[df_user["Periode_Minggu"] == current_week_label]
         omset_minggu_ini_u = int(df_week_u["Jumlah_Bungkus"].sum())
@@ -2361,6 +2372,7 @@ def run_app():
                 <div>
                     <div class="card-value">{omset_hari_ini_u:,} bks</div>
                     <div class="card-subtext">dari {target_hari_ini_u} target SPG bks</div>
+                    <div style="{status_target_spg_style_u}">{status_target_spg_u}</div>
                 </div>""",
                 "Omset Hari Ini",
             )
