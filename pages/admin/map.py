@@ -1,4 +1,5 @@
 from ui.application import build_polygon_features, get_geo_districts, load_database, pd, pdk, st
+from ui.components import format_sales_table
 
 
 def render():
@@ -322,7 +323,7 @@ def render():
                 ]
             ].rename(columns={"Jam_Label": "Jam", "Koordinat_Str": "Koordinat"})
             st.dataframe(
-                df_urutan_view,
+                format_sales_table(df_urutan_view),
                 use_container_width=True,
                 hide_index=True,
                 column_config={

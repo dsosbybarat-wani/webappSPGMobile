@@ -1,4 +1,5 @@
 from ui.application import load_database, pd, st
+from ui.components import format_sales_table
 
 
 def render():
@@ -50,7 +51,7 @@ def render():
             )
             chart_kec = df_sebaran_kec.set_index("Kecamatan")["Total_Omset_Bungkus"]
             st.bar_chart(chart_kec)
-            st.dataframe(df_sebaran_kec, use_container_width=True)
+            st.dataframe(format_sales_table(df_sebaran_kec), use_container_width=True)
         else:
             st.info("Tidak ada data pada wilayah yang dipilih.")
     else:

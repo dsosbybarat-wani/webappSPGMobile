@@ -101,7 +101,7 @@ from geo.loader import (
     load_master_wilayah,
 )
 from ui.theme import apply_team_theme_css, get_team_theme, render_global_styles
-from ui.components import render_address_box, render_dashboard_card
+from ui.components import format_sales_table, render_address_box, render_dashboard_card
 
 try:
     from schedule_entry import (
@@ -1036,7 +1036,7 @@ def render_rekapitulasi_penjualan_report(team_name: str, target_date_str: str, a
             render_dashboard_card(
                 f"""
                 <div>
-                    <div style="font-size:0.85rem;font-weight:700;color:#334155;">👩‍💼 {spg_nm}</div>
+                    <div class="card-person-name" style="font-size:0.85rem;font-weight:700;">👩‍💼 {spg_nm}</div>
                     <div class="card-value" style="margin-top:6px;">{bks_s:,} bks</div>
                     <div class="card-subtext">Rp {uang_s:,} • {trx_s} transaksi</div>
                 </div>
@@ -1056,7 +1056,7 @@ def render_rekapitulasi_penjualan_report(team_name: str, target_date_str: str, a
         )
         df_breakdown_spg_merk["Terjual_Bungkus"] = df_breakdown_spg_merk["Terjual_Bungkus"].astype(int)
         df_breakdown_spg_merk["Total_Uang_Rp"] = df_breakdown_spg_merk["Total_Uang_Rp"].astype(int)
-        st.dataframe(df_breakdown_spg_merk, use_container_width=True, hide_index=True)
+        st.dataframe(format_sales_table(df_breakdown_spg_merk), use_container_width=True, hide_index=True)
     else:
         st.info("Belum ada penjualan SPG tercatat pada tanggal ini.")
 
@@ -1097,7 +1097,7 @@ def render_rekapitulasi_penjualan_report(team_name: str, target_date_str: str, a
 
     if rows_stok_rekap:
         df_stok_rekap = pd.DataFrame(rows_stok_rekap)
-        st.dataframe(df_stok_rekap, use_container_width=True, hide_index=True)
+        st.dataframe(format_sales_table(df_stok_rekap), use_container_width=True, hide_index=True)
 
         total_stok_dibawa_all = int(df_stok_rekap["Stok_Dibawa"].sum())
         total_terjual_all = int(df_stok_rekap["Total_Terjual_SPG"].sum())
@@ -1235,7 +1235,7 @@ def render_rekapitulasi_penjualan_report(team_name: str, target_date_str: str, a
             by=["Waktu_Kunjungan", "Kecamatan", "Warkop_LKK"],
             ascending=[False, True, True],
         ).reset_index(drop=True)
-        st.dataframe(df_4b, use_container_width=True, hide_index=True)
+        st.dataframe(format_sales_table(df_4b), use_container_width=True, hide_index=True)
         st.info(
             f"📍 **Ringkasan Kunjungan ({target_date_str}):** **{len(df_4b)}** warkop dikunjungi • "
             f"Total Kontak Tim: **{int(df_4b['Jumlah_Kontak_Tim'].sum()):,}** • "
@@ -1962,7 +1962,7 @@ def run_app():
             render_dashboard_card(f'<div class="card-value">{total_konsumen_beli}</div>', "Konsumen Beli (LKK Ini)")
         with col_mon3:
             render_dashboard_card(
-                f'<div class="card-value" style="color: #16A34A;">Rp {total_uang_2spg_today:,}</div>',
+                f'<div class="card-value-green">Rp {total_uang_2spg_today:,}</div>',
                 "Uang Terkumpul 2 SPG Hari Ini",
             )
         with col_mon4:
@@ -2036,13 +2036,16 @@ def run_app():
             df_combine_rekap = df_combine_rekap[
                 ["Kecamatan", "Warkop_LKK", "Alamat_Warkop", "Jumlah_SPG_Bertugas", "Kontak_Supervisi_Team", "Konsumen_Beli", "Total_Omset_Bungkus", "Total_Uang_Rp"]
             ].sort_values(by="Total_Omset_Bungkus", ascending=False)
-            st.dataframe(df_combine_rekap, use_container_width=True)
+            st.dataframe(format_sales_table(df_combine_rekap), use_container_width=True)
         else:
             st.info("Titik LKK akan tampil di rekap setelah Supervisi menginput jumlah kontak.")
 
         st.markdown("#### 📑 Log Detail Transaksi Konsumen Beli (SPG) di Warkop Ini")
         if not df_lkk_active_spg.empty:
-            st.dataframe(df_lkk_active_spg.drop(columns=["Waktu", "Promotor", "Plat_Mobil"], errors="ignore"), use_container_width=True)
+            st.dataframe(
+                format_sales_table(df_lkk_active_spg.drop(columns=["Waktu", "Promotor", "Plat_Mobil"], errors="ignore")),
+                use_container_width=True,
+            )
         else:
             st.info(f"Belum ada data konsumen beli masuk untuk titik Warkop / LKK '{nama_warkop_manual or '-'}'.")
 
@@ -2496,7 +2499,12 @@ def run_app():
             cols_spg_order = ["Tanggal", "Periode_Minggu", "Promotor", "Nama_SPG", "Kota_Kab", "Brand_Rokok", "Total_Omset_SPG", "Total_Konsumen_Beli", "Target_SPG", "Status_Target_SPG"]
             df_spg_achievement = df_spg_achievement[[c for c in cols_spg_order if c in df_spg_achievement.columns]]
 
-            st.dataframe(df_spg_achievement.style.map(style_status_target, subset=["Status_Target_SPG"]), use_container_width=True)
+            st.dataframe(
+                format_sales_table(
+                    df_spg_achievement.style.map(style_status_target, subset=["Status_Target_SPG"])
+                ),
+                use_container_width=True,
+            )
         else:
             st.info("Tidak ada data untuk filter Pencapaian SPG yang dipilih.")
 
@@ -2538,13 +2546,26 @@ def run_app():
             cols_tm_order = ["Tanggal", "Periode_Minggu", "Promotor", "Kota_Kab", "Brand_Rokok", "Total_Omset_Team", "Total_Konsumen_Beli", "Target_Team", "Status_Target_Team"]
             df_tm_achievement = df_tm_achievement[[c for c in cols_tm_order if c in df_tm_achievement.columns]]
 
-            st.dataframe(df_tm_achievement.style.map(style_status_target, subset=["Status_Target_Team"]), use_container_width=True)
+            st.dataframe(
+                format_sales_table(
+                    df_tm_achievement.style.map(style_status_target, subset=["Status_Target_Team"])
+                ),
+                use_container_width=True,
+            )
         else:
             st.info("Tidak ada data untuk filter Pencapaian Team yang dipilih.")
 
         st.markdown("---")
         st.markdown("### 📑 Riwayat Laporan Anda")
-        st.dataframe(df_user.drop(columns=["Waktu_Dt", "Periode_Minggu", "Tanggal", "Bulan_Tahun"], errors="ignore").tail(20), use_container_width=True)
+        st.dataframe(
+            format_sales_table(
+                df_user.drop(
+                    columns=["Waktu_Dt", "Periode_Minggu", "Tanggal", "Bulan_Tahun"],
+                    errors="ignore",
+                ).tail(20)
+            ),
+            use_container_width=True,
+        )
     else:
         st.info("Belum ada data laporan untuk akun ini.")
 

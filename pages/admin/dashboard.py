@@ -13,6 +13,7 @@ from ui.application import (
     style_status_target,
     timedelta,
 )
+from ui.components import format_sales_table
 
 
 def render():
@@ -256,7 +257,12 @@ def render():
             cols_lb_order = ["Tanggal", "Periode_Minggu", "Promotor", "Kota_Kab", "Brand_Rokok", "Total_Omset_Team", "Total_Konsumen_Beli", "Target_Team", "Status_Target_Team"]
             df_team_leaderboard = df_team_leaderboard[[c for c in cols_lb_order if c in df_team_leaderboard.columns]]
 
-            st.dataframe(df_team_leaderboard.style.map(style_status_target, subset=["Status_Target_Team"]), use_container_width=True)
+            st.dataframe(
+                format_sales_table(
+                    df_team_leaderboard.style.map(style_status_target, subset=["Status_Target_Team"])
+                ),
+                use_container_width=True,
+            )
         else:
             st.info("Tidak ada data untuk filter Leaderboard yang dipilih.")
 
@@ -291,6 +297,14 @@ def render():
                 .pivot_table(index=["Tanggal", "Periode_Minggu", "Promotor", "Nama_SPG"], columns="Brand_Rokok", values="Jumlah_Bungkus", fill_value=0)
                 .reset_index()
             )
-            st.dataframe(df_rokok_summary, use_container_width=True)
+            numeric_sales_columns = [
+                column
+                for column in df_rokok_summary.columns
+                if pd.api.types.is_numeric_dtype(df_rokok_summary[column])
+            ]
+            st.dataframe(
+                format_sales_table(df_rokok_summary, columns=numeric_sales_columns),
+                use_container_width=True,
+            )
         else:
             st.info("Tidak ada data untuk filter Rokok Laku yang dipilih.")
