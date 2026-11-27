@@ -35,6 +35,9 @@ def render():
             if st.button("🗺️ Peta Rute & Poligon", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Peta_Rute" else "secondary"):
                 st.session_state["admin_view"] = "Peta_Rute"
                 st.rerun()
+            if st.button("🧾 Edit & Hapus Laporan", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Master_Laporan" else "secondary"):
+                st.session_state["admin_view"] = "Master_Laporan"
+                st.rerun()
 
             st.markdown("##### ⚙️ :red[Master Data]")
             if st.button("🔑 PIN & Hak Akses User", use_container_width=True, type="primary" if st.session_state["admin_view"] == "Master_Akses" else "secondary"):

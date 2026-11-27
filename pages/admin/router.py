@@ -1,4 +1,4 @@
-from . import access, team_names, vehicles, team_brands, spgs, brands_targets, prices, locations, schedule, analytics, map, dashboard
+from . import access, team_names, vehicles, team_brands, spgs, brands_targets, prices, locations, schedule, analytics, map, dashboard, records
 
 
 ADMIN_PAGES = {
@@ -13,6 +13,7 @@ ADMIN_PAGES = {
     'Master_Jadwal_Excel': schedule.render,
     'Analitik': analytics.render,
     'Peta_Rute': map.render,
+    'Master_Laporan': records.render,
 }
 
 
