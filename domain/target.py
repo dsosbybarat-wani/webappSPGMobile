@@ -73,7 +73,7 @@ def get_target_for_brand(brand, target_key, default_val):
 
 def style_status_target(val):
     if val == "Not Achieved":
-        return "color: var(--danger-text, #DC2626); font-weight: 700;"
+        return "color: #DC2626; font-weight: 700;"
     if val == "Achieved":
-        return "color: var(--positive-text, #16A34A); font-weight: 700;"
+        return "color: #16A34A; font-weight: 700;"
     return ""

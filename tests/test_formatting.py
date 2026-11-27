@@ -2,6 +2,7 @@ import unittest
 
 import pandas as pd
 
+from domain.target import style_status_target
 from ui.components import format_indonesian_number, format_sales_table
 
 
@@ -23,6 +24,19 @@ class SalesTableFormattingTests(unittest.TestCase):
         self.assertIn("3.000.000", styled)
         self.assertIn("106.812345", styled)
         self.assertEqual(dataframe.loc[0, "Jumlah_Bungkus"], 3_000_000)
+
+    def test_target_status_text_renders_with_explicit_colors(self):
+        dataframe = pd.DataFrame(
+            {"Status_Target": ["Achieved", "Not Achieved"]}
+        )
+        styled = format_sales_table(
+            dataframe.style.map(style_status_target, subset=["Status_Target"])
+        ).to_html()
+
+        self.assertIn("Achieved", styled)
+        self.assertIn("Not Achieved", styled)
+        self.assertIn("#16A34A", styled)
+        self.assertIn("#DC2626", styled)
 
 
 if __name__ == "__main__":
