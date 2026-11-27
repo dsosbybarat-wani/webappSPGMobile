@@ -143,6 +143,22 @@ def load_master_wilayah(kota, kecamatan_list=None):
     return gpd.GeoDataFrame(combined, crs="EPSG:4326")
 
 
+def is_point_within_city(kota, point) -> bool | None:
+    """Check a GPS point against the combined district polygons for a city."""
+    city_geodata = load_master_wilayah(kota)
+    if city_geodata is None or city_geodata.empty:
+        return None
+
+    geometries = city_geodata.geometry.dropna()
+    if geometries.empty:
+        return None
+
+    city_boundary = geometries.unary_union
+    if city_boundary is None or city_boundary.is_empty:
+        return None
+    return bool(city_boundary.covers(point))
+
+
 def get_geo_districts(kota: str) -> list[str]:
     """Get district names without loading all polygon data."""
     city = str(kota or "").strip().casefold()

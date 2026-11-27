@@ -61,7 +61,6 @@ from core.backup import (
 from core.storage import (
     _cached_read_excel,
     _cached_read_json,
-    _file_mtime,
     _read_json_safe,
     load_database,
     load_master_lokasi_excel,
@@ -92,13 +91,11 @@ from domain.schedule import (
     save_jadwal_spg,
 )
 from geo.loader import (
-    _resolve_kecamatan_filepath,
     build_polygon_features,
     get_geo_districts,
     load_geojson_index,
-    load_kecamatan_gdf,
+    is_point_within_city,
     load_kecamatan_geojson,
-    load_master_wilayah,
 )
 from ui.theme import apply_team_theme_css, get_team_theme, render_global_styles
 from ui.components import format_sales_table, render_address_box, render_dashboard_card
@@ -1558,7 +1555,6 @@ def run_app():
         st.session_state["user_spg"]
     )
     loc = get_geolocation()
-    detected_kecamatan = None
 
     if loc is None or not isinstance(loc, dict) or "coords" not in loc:
         user_lat = -7.2575
@@ -1570,40 +1566,10 @@ def run_app():
         user_lon = float(loc["coords"]["longitude"])
         akurasi_meter = round(float(loc["coords"].get("accuracy", 0)), 1)
         point_user = Point(user_lon, user_lat)
-        is_inside_geofence = False
-
-        kandidat_kec_gps = (
-            [k for k in (daftar_kecamatan_terjadwal or []) if k]
-            if schedule_ok
-            else []
+        city_geofence_result = is_point_within_city(st.session_state["kota_kab"], point_user)
+        is_inside_geofence = (
+            True if city_geofence_result is None else city_geofence_result
         )
-        if not kandidat_kec_gps:
-            kandidat_kec_gps = [k for k in daftar_kecamatan if k != "Kecamatan Default"]
-
-        checked_any_geom = False
-        for kc_cand in kandidat_kec_gps:
-            fp_cand = _resolve_kecamatan_filepath(kc_cand)
-            gdf_cand = load_kecamatan_gdf(kc_cand, _file_mtime(fp_cand) if fp_cand else 0.0)
-            if gdf_cand is not None and not gdf_cand.empty:
-                checked_any_geom = True
-                col_kec_cand = next(
-                    (c for c in ["nm_kecamatan", "KECAMATAN", "kecamatan", "Name", "NAME"] if c in gdf_cand.columns),
-                    None,
-                )
-                for _, row_geom in gdf_cand.iterrows():
-                    geom = row_geom.geometry
-                    if geom is not None and (geom.contains(point_user) or geom.intersects(point_user)):
-                        is_inside_geofence = True
-                        detected_kecamatan = (
-                            str(row_geom[col_kec_cand]).strip()
-                            if col_kec_cand and pd.notna(row_geom[col_kec_cand])
-                            else kc_cand
-                        )
-                        break
-            if is_inside_geofence:
-                break
-        if not checked_any_geom:
-            is_inside_geofence = True
 
     # --- JADWAL & TITIK KUNJUNGAN TERKUNCI ---
     if not schedule_ok:
