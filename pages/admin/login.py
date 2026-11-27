@@ -6,7 +6,7 @@ def render():
         """
         <div class="login-header">
             <div style="font-size: 2.2rem; margin-bottom: 4px;">🔐</div>
-            <span class="login-kicker">TUMARSO · CONTROL CENTER</span>
+            <span class="login-kicker">AYU AGENCY · CONTROL CENTER</span>
             <h1>PORTAL ADMIN &amp; SUPERVISOR</h1>
             <p>Kelola data master dan pantau operasional lapangan dari satu tempat.</p>
         </div>
