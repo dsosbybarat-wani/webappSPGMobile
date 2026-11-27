@@ -2429,7 +2429,9 @@ def run_app():
 
         all_weeks_u = sorted(df_user["Periode_Minggu"].dropna().unique().tolist(), reverse=True)
         all_dates_u = sorted(df_user["Tanggal"].dropna().unique().tolist(), reverse=True)
-        all_spgs_u = sorted(df_user["Nama_SPG"].dropna().unique().tolist())
+        all_spgs_u = [active_spg_name] if active_spg_name else sorted(
+            df_user["Nama_SPG"].dropna().unique().tolist()
+        )
 
         st.markdown("---")
         st.markdown("### 👩‍💼 Pencapaian Per SPG (Berdasarkan Target SPG)")
@@ -2449,6 +2451,10 @@ def run_app():
             df_spg_filtered = df_spg_filtered[df_spg_filtered["Tanggal"].isin(filter_spg_tgl)]
         if filter_spg_nm:
             df_spg_filtered = df_spg_filtered[df_spg_filtered["Nama_SPG"].isin(filter_spg_nm)]
+        if active_spg_name:
+            df_spg_filtered = df_spg_filtered[
+                df_spg_filtered["Nama_SPG"].astype(str).str.strip() == active_spg_name
+            ]
 
         if not df_spg_filtered.empty:
             df_spg_achievement = (
