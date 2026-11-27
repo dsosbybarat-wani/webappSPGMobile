@@ -1312,24 +1312,20 @@ def run_app():
     # ====================================================
     # SIDEBAR ADMIN (HANYA TAMPIL SAAT ?page=admin AKTIF)
     # ====================================================
-    if _admin_portal_requested and not st.session_state["logged_in"]:
+    if _admin_portal_requested and st.session_state["admin_logged_in"]:
         from pages.admin.sidebar import render as render_admin_sidebar
         render_admin_sidebar()
 
     # ====================================================
     # HALAMAN ADMIN
     # ====================================================
-    if _admin_portal_requested and not st.session_state["logged_in"] and st.session_state["admin_logged_in"]:
-        from pages.admin.router import render_admin_page
-        render_admin_page(st.session_state.get("admin_view", "Dashboard"))
-        st.stop()
-
-    # ====================================================
-    # PORTAL LOGIN KHUSUS ADMIN (?page=admin)
-    # ====================================================
-    if _admin_portal_requested and not st.session_state["logged_in"] and not st.session_state["admin_logged_in"]:
-        from pages.admin.login import render as render_admin_login
-        render_admin_login()
+    if _admin_portal_requested:
+        if st.session_state["admin_logged_in"]:
+            from pages.admin.router import render_admin_page
+            render_admin_page(st.session_state.get("admin_view", "Dashboard"))
+        else:
+            from pages.admin.login import render as render_admin_login
+            render_admin_login()
         st.stop()
 
     # ====================================================

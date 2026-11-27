@@ -65,5 +65,5 @@ def render():
             st.markdown("---")
             if st.button("🔒 Keluar Mode Admin", use_container_width=True):
                 st.session_state["admin_logged_in"] = False
-                st.query_params.clear()
+                st.session_state["admin_view"] = "Dashboard"
                 st.rerun()

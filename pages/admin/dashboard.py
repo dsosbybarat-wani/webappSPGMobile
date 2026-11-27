@@ -64,6 +64,7 @@ def render():
     with col_a3:
         if st.button("⬅️ Keluar Admin", use_container_width=True):
             st.session_state["admin_logged_in"] = False
+            st.session_state["admin_view"] = "Dashboard"
             st.rerun()
 
     st.markdown("---")
