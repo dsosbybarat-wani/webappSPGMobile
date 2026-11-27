@@ -15,6 +15,8 @@ import openpyxl
 import pandas as pd
 import streamlit as st
 
+from core.storage import write_dataframe_atomic, write_json_atomic
+
 
 SCHEDULE_FILE = JADWAL_SPG_FILE
 SCHEDULE_DETAIL_FILE = "jadwal_spg_detail.json"
@@ -42,12 +44,12 @@ FLAT_SCHEDULE_REQUIRED_COLS = {
 }
 
 
-def _file_mtime(path: str) -> float:
-    return os.path.getmtime(path) if os.path.exists(path) else 0.0
+def _file_mtime(path: str) -> int:
+    return os.stat(path).st_mtime_ns if os.path.exists(path) else 0
 
 
 @st.cache_data(show_spinner=False)
-def _cached_read_excel_file(path: str, mtime: float) -> pd.DataFrame:
+def _cached_read_excel_file(path: str, mtime: int) -> pd.DataFrame:
     frame = pd.read_excel(path)
     frame.columns = [str(column).strip() for column in frame.columns]
     return frame
@@ -64,7 +66,7 @@ def _read_schedule_workbook() -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def _cached_read_json_file(path: str, mtime: float):
+def _cached_read_json_file(path: str, mtime: int):
     with open(path, "r", encoding="utf-8") as file:
         return json.load(file)
 
@@ -77,8 +79,7 @@ def load_schedule():
 
 def save_schedule(frame):
     try:
-        frame.to_excel(SCHEDULE_FILE, index=False)
-        st.cache_data.clear()
+        write_dataframe_atomic(frame, SCHEDULE_FILE)
         return True
     except Exception as exc:
         st.error(f"Gagal menyimpan {SCHEDULE_FILE}: {exc}")
@@ -121,9 +122,7 @@ def load_details():
 
 def save_details(details):
     try:
-        with open(SCHEDULE_DETAIL_FILE, "w", encoding="utf-8") as file:
-            json.dump(details, file, ensure_ascii=False, indent=2)
-        st.cache_data.clear()
+        write_json_atomic(SCHEDULE_DETAIL_FILE, details)
         return True
     except (OSError, TypeError, ValueError) as exc:
         st.error(f"Gagal menyimpan detail jadwal: {exc}")
@@ -1336,7 +1335,6 @@ def render_schedule_entry():
                             st.rerun()
 
     if st.button("🔄 Muat Ulang Jadwal", key="reload_schedule"):
-        st.cache_data.clear()
         st.rerun()
 
     with tab_excel:

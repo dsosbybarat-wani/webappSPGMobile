@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from config.constants import JADWAL_SPG_FILE
-from core.storage import _cached_read_excel, _file_mtime
+from core.storage import _cached_read_excel, _file_mtime, write_dataframe_atomic
 
 
 def normalize_text(value):
@@ -26,7 +26,7 @@ def load_jadwal_spg():
 
 def save_jadwal_spg(df):
     try:
-        df.to_excel(JADWAL_SPG_FILE, index=False)
+        write_dataframe_atomic(df, JADWAL_SPG_FILE)
         return True
     except Exception as exc:
         st.error(f"Gagal menyimpan file Jadwal SPG {JADWAL_SPG_FILE}: {exc}")

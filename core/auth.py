@@ -1,12 +1,11 @@
 import hashlib
 import hmac
-import json
 import os
 
 import streamlit as st
 
 from config.constants import DEFAULT_SPG_PIN, DEFAULT_SUPERVISI_PIN, MASTER_AKSES_FILE
-from core.storage import _read_json_safe
+from core.storage import _read_json_safe, write_json_atomic
 
 
 def _hash_pin(pin_plain: str) -> str:
@@ -58,9 +57,7 @@ def save_master_akses(akses_cfg: dict) -> bool:
             if str(key).strip() and str(value).strip()
         },
     }
-    with open(MASTER_AKSES_FILE, "w", encoding="utf-8") as file:
-        json.dump(payload, file, ensure_ascii=False, indent=2)
-    st.cache_data.clear()
+    write_json_atomic(MASTER_AKSES_FILE, payload)
     return True
 
 
@@ -94,9 +91,13 @@ def verify_user_pin(role: str, person_name: str, entered_pin: str, akses_cfg: di
 
 def verify_admin_password(entered_password: str) -> bool:
     try:
-        expected = st.secrets.get("ADMIN_PASSWORD", os.environ.get("ADMIN_PASSWORD", "admin123"))
+        expected = st.secrets.get("ADMIN_PASSWORD")
     except FileNotFoundError:
-        expected = os.environ.get("ADMIN_PASSWORD", "admin123")
+        expected = None
+    expected = expected or os.environ.get("ADMIN_PASSWORD")
+    if not expected:
+        st.error("Password admin belum dikonfigurasi. Atur ADMIN_PASSWORD di Streamlit secrets atau environment.")
+        return False
     return hmac.compare_digest(str(entered_password or ""), str(expected or ""))
 
 

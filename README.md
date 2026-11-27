@@ -113,6 +113,15 @@ aplikasi; halaman admin dipisahkan ke modul masing-masing.
    lokal.
 3. Operasi sinkronisasi terjadi atas permintaan pengguna melalui kontrol admin.
 
+### Password Admin
+
+Atur `ADMIN_PASSWORD` pada Streamlit secrets atau environment sebelum menjalankan
+aplikasi. Password admin bawaan tidak digunakan.
+
+```toml
+ADMIN_PASSWORD = "<strong-random-password>"
+```
+
 ### Backup Supabase
 
 1. Tombol **Backup ke Supabase** menyimpan snapshot ke tabel
@@ -193,7 +202,8 @@ File-based Data Store
 ## Keamanan dan Operasional
 
 Implementasi saat ini menyimpan status login pada Streamlit session state dan
-menggunakan password admin statis. Untuk deployment produksi, rekomendasi minimum:
+mengambil password admin dari `ADMIN_PASSWORD` di secrets atau environment. Untuk
+deployment produksi, rekomendasi minimum:
 
 - Pindahkan autentikasi ke penyedia identity atau database akun dengan pembatasan
   per role.

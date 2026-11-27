@@ -1,13 +1,9 @@
-import json
-
-import streamlit as st
-
 from config.constants import (
     DEFAULT_TARGET_RULES,
     MASTER_TARGET_FILE,
     TARGET_GROUP_LABELS,
 )
-from core.storage import _read_json_safe
+from core.storage import _read_json_safe, write_json_atomic
 
 
 def load_target_rules():
@@ -26,9 +22,7 @@ def refresh_target_rules():
 
 def save_target_rules(rules):
     cleaned = rules if isinstance(rules, dict) else {}
-    with open(MASTER_TARGET_FILE, "w", encoding="utf-8") as file:
-        json.dump(cleaned, file, ensure_ascii=False, indent=2)
-    st.cache_data.clear()
+    write_json_atomic(MASTER_TARGET_FILE, cleaned)
     refresh_target_rules()
 
 

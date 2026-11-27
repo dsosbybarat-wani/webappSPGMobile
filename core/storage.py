@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 
 import pandas as pd
 import streamlit as st
@@ -13,24 +14,60 @@ from config.constants import (
 )
 
 
-def _file_mtime(path: str) -> float:
-    return os.path.getmtime(path) if os.path.exists(path) else 0.0
+def _file_mtime(path: str) -> int:
+    return os.stat(path).st_mtime_ns if os.path.exists(path) else 0
+
+
+def _write_atomically(path: str, writer) -> None:
+    directory = os.path.dirname(os.path.abspath(path))
+    os.makedirs(directory, exist_ok=True)
+    descriptor, temporary_path = tempfile.mkstemp(
+        dir=directory,
+        prefix=f".{os.path.basename(path)}.",
+        suffix=os.path.splitext(path)[1] or ".tmp",
+    )
+    os.close(descriptor)
+    try:
+        writer(temporary_path)
+        os.replace(temporary_path, path)
+    finally:
+        if os.path.exists(temporary_path):
+            os.remove(temporary_path)
+
+
+def write_json_atomic(path: str, data) -> None:
+    def write(temporary_path):
+        with open(temporary_path, "w", encoding="utf-8") as file:
+            json.dump(data, file, ensure_ascii=False, indent=2)
+
+    _write_atomically(path, write)
+
+
+def write_dataframe_atomic(df: pd.DataFrame, path: str) -> None:
+    extension = os.path.splitext(path)[1].lower()
+    if extension == ".csv":
+        writer = lambda temporary_path: df.to_csv(temporary_path, index=False)
+    elif extension == ".xlsx":
+        writer = lambda temporary_path: df.to_excel(temporary_path, index=False)
+    else:
+        raise ValueError(f"Format file tidak didukung untuk penulisan atomik: {extension}")
+    _write_atomically(path, writer)
 
 
 @st.cache_data(show_spinner=False)
-def _cached_read_csv(path: str, mtime: float) -> pd.DataFrame:
+def _cached_read_csv(path: str, mtime: int) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
 @st.cache_data(show_spinner=False)
-def _cached_read_excel(path: str, mtime: float) -> pd.DataFrame:
+def _cached_read_excel(path: str, mtime: int) -> pd.DataFrame:
     df = pd.read_excel(path)
     df.columns = [str(column).strip() for column in df.columns]
     return df
 
 
 @st.cache_data(show_spinner=False)
-def _cached_read_json(path: str, mtime: float):
+def _cached_read_json(path: str, mtime: int):
     if not os.path.exists(path):
         return None
     try:
@@ -43,18 +80,12 @@ def _cached_read_json(path: str, mtime: float):
         return None
 
 
-@st.cache_data(show_spinner=False)
-def _cached_read_json_no_mtime(path: str, _mtime: float = 0.0) -> dict | list | None:
-    """Read JSON safely while using the file modification time as the cache key."""
-    return _cached_read_json(path, _mtime)
-
-
 def _read_json_safe(path: str) -> dict | list | None:
-    return _cached_read_json_no_mtime(path, _file_mtime(path))
+    return _cached_read_json(path, _file_mtime(path))
 
 
 @st.cache_data(show_spinner=False)
-def _cached_load_db_transformed(path: str, mtime: float) -> pd.DataFrame:
+def _cached_load_db_transformed(path: str, mtime: int) -> pd.DataFrame:
     df = pd.read_csv(path)
     if "Usia" in df.columns and "Range_Umur" not in df.columns:
         df = df.rename(columns={"Usia": "Range_Umur"})
@@ -74,11 +105,11 @@ def load_database():
 
 
 def save_database(df):
-    df.to_csv(DB_FILE, index=False)
+    write_dataframe_atomic(df, DB_FILE)
 
 
 @st.cache_data(show_spinner=False)
-def _cached_load_sup_transformed(path: str, mtime: float) -> pd.DataFrame:
+def _cached_load_sup_transformed(path: str, mtime: int) -> pd.DataFrame:
     df = pd.read_csv(path)
     for column in EXPECTED_SUPERVISI_COLUMNS:
         if column not in df.columns:
@@ -99,7 +130,7 @@ def load_supervisi_database():
 
 
 def save_supervisi_database(df):
-    df.to_csv(DB_SUPERVISI_KONTAK_FILE, index=False)
+    write_dataframe_atomic(df, DB_SUPERVISI_KONTAK_FILE)
 
 
 def load_master_lokasi_excel():
@@ -120,7 +151,7 @@ def load_master_lokasi_excel():
 
 def save_master_lokasi_excel(df_excel):
     try:
-        df_excel.to_excel(MASTER_LOKASI_FILE, index=False)
+        write_dataframe_atomic(df_excel, MASTER_LOKASI_FILE)
         return True
     except Exception as exc:
         st.error(f"Gagal menyimpan file Excel: {exc}")

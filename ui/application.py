@@ -13,8 +13,6 @@ import streamlit as st
 from functools import lru_cache
 from streamlit_js_eval import get_geolocation
 from config.constants import (
-    DB_FILE,
-    DB_SUPERVISI_KONTAK_FILE,
     DEFAULT_BRANDS,
     DEFAULT_HARGA_KONSUMEN,
     DEFAULT_PLATS,
@@ -24,13 +22,11 @@ from config.constants import (
     EXPECTED_COLUMNS,
     EXPECTED_SUPERVISI_COLUMNS,
     GEOJSON_INDEX_FILE,
-    JADWAL_SPG_FILE,
     KECAMATAN_BY_KOTA,
     LOCKED_LKK_POINT_FILE,
     MASTER_AKSES_FILE,
     MASTER_BRAND_FILE,
     MASTER_HARGA_FILE,
-    MASTER_LOKASI_FILE,
     MASTER_PLAT_FILE,
     MASTER_SPG_FILE,
     MASTER_TARGET_FILE,
@@ -73,6 +69,7 @@ from core.storage import (
     save_database,
     save_master_lokasi_excel,
     save_supervisi_database,
+    write_json_atomic,
 )
 from domain.target import (
     TARGET_RULES,
@@ -200,9 +197,7 @@ def save_stok_supervisi(stok_map: dict) -> bool:
             cleaned[str(k)] = max(0, int(float(v)))
         except (ValueError, TypeError):
             cleaned[str(k)] = 0
-    with open(STOK_SUPERVISI_FILE, "w", encoding="utf-8") as f:
-        json.dump(cleaned, f, ensure_ascii=False, indent=2)
-    st.cache_data.clear()
+    write_json_atomic(STOK_SUPERVISI_FILE, cleaned)
     return True
 
 
@@ -243,9 +238,7 @@ def save_harga_konsumen(harga_map: dict) -> bool:
                 cleaned[label] = max(0, int(float(v)))
             except (ValueError, TypeError):
                 cleaned[label] = 0
-    with open(MASTER_HARGA_FILE, "w", encoding="utf-8") as f:
-        json.dump(cleaned, f, ensure_ascii=False, indent=2)
-    st.cache_data.clear()
+    write_json_atomic(MASTER_HARGA_FILE, cleaned)
     return True
 
 
@@ -293,9 +286,7 @@ def save_warkop_visit_status_map(status_map: dict) -> bool:
                 cleaned[str(k)] = VISIT_STATUS_TIDAK_WAJIB
             else:
                 cleaned[str(k)] = VISIT_STATUS_WAJIB
-        with open(WARKOP_VISIT_STATUS_FILE, "w", encoding="utf-8") as f:
-            json.dump(cleaned, f, ensure_ascii=False, indent=2)
-        st.cache_data.clear()
+        write_json_atomic(WARKOP_VISIT_STATUS_FILE, cleaned)
         return True
     except Exception as e:
         st.error(f"Gagal menyimpan status warkop wajib/tidak wajib: {e}")
@@ -356,9 +347,7 @@ def save_locked_lkk_point(team_name: str, point_info: dict) -> bool:
     payload["locked_at"] = (datetime.utcnow() + timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
     all_locked[key] = payload
     try:
-        with open(LOCKED_LKK_POINT_FILE, "w", encoding="utf-8") as f:
-            json.dump(all_locked, f, ensure_ascii=False, indent=2)
-        st.cache_data.clear()
+        write_json_atomic(LOCKED_LKK_POINT_FILE, all_locked)
         return True
     except Exception as e:
         st.error(f"Gagal menyimpan titik LKK aktif: {e}")
@@ -372,9 +361,7 @@ def clear_locked_lkk_point(team_name: str) -> bool:
     if key in all_locked:
         all_locked.pop(key, None)
         try:
-            with open(LOCKED_LKK_POINT_FILE, "w", encoding="utf-8") as f:
-                json.dump(all_locked, f, ensure_ascii=False, indent=2)
-            st.cache_data.clear()
+            write_json_atomic(LOCKED_LKK_POINT_FILE, all_locked)
             return True
         except Exception:
             return False
@@ -519,7 +506,6 @@ def render_google_sheet_backup_controls():
                 with st.spinner("Memuat backup terbaru dari Supabase..."):
                     backup = get_latest_supabase_backup()
                     restore_supabase_backup(backup["data"])
-                    st.cache_data.clear()
                     st.success(
                         f"✅ Backup Supabase {backup.get('created_at', '')} "
                         "berhasil dimuat. Data lokal telah diganti."
@@ -536,15 +522,18 @@ def render_google_sheet_backup_controls():
                         data_gs = res_json.get("data", {})
 
                         if "rekap_laporan" in data_gs and len(data_gs["rekap_laporan"]) > 0:
-                            sheet_rows_to_df(data_gs["rekap_laporan"], EXPECTED_COLUMNS).to_csv(DB_FILE, index=False)
+                            save_database(sheet_rows_to_df(data_gs["rekap_laporan"], EXPECTED_COLUMNS))
                         if "rekap_supervisi" in data_gs and len(data_gs["rekap_supervisi"]) > 0:
-                            sheet_rows_to_df(data_gs["rekap_supervisi"], EXPECTED_SUPERVISI_COLUMNS).to_csv(DB_SUPERVISI_KONTAK_FILE, index=False)
+                            save_supervisi_database(
+                                sheet_rows_to_df(data_gs["rekap_supervisi"], EXPECTED_SUPERVISI_COLUMNS)
+                            )
                         if "jadwal_spg" in data_gs and len(data_gs["jadwal_spg"]) > 0:
-                            sheet_rows_to_df(data_gs["jadwal_spg"]).to_excel(JADWAL_SPG_FILE, index=False)
+                            if not save_jadwal_spg(sheet_rows_to_df(data_gs["jadwal_spg"])):
+                                raise RuntimeError("Gagal menyimpan jadwal dari Google Sheet.")
                         if "master_warkop" in data_gs and len(data_gs["master_warkop"]) > 0:
-                            sheet_rows_to_df(data_gs["master_warkop"]).to_excel(MASTER_LOKASI_FILE, index=False)
+                            if not save_master_lokasi_excel(sheet_rows_to_df(data_gs["master_warkop"])):
+                                raise RuntimeError("Gagal menyimpan master warkop dari Google Sheet.")
 
-                        st.cache_data.clear()
                         st.success("✅ Data berhasil dimuat dari Google Sheet!")
                         st.rerun()
                     else:
@@ -773,17 +762,13 @@ def save_master_team_names(team_names_dict):
         st.error("Nama team tidak boleh duplikat.")
         return False
     try:
-        with open(MASTER_TEAM_NAME_FILE, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    f"Team SPG {i}": str(team_names_dict.get(f"Team SPG {i}", "")).strip()
-                    for i in range(1, 21)
-                },
-                f,
-                ensure_ascii=False,
-                indent=2,
-            )
-        st.cache_data.clear()
+        write_json_atomic(
+            MASTER_TEAM_NAME_FILE,
+            {
+                f"Team SPG {i}": str(team_names_dict.get(f"Team SPG {i}", "")).strip()
+                for i in range(1, 21)
+            },
+        )
         return True
     except Exception as e:
         st.error(f"Gagal menyimpan master nama team: {e}")
@@ -797,9 +782,7 @@ def load_master_brands():
 
 def save_master_brands(brands):
     try:
-        with open(MASTER_BRAND_FILE, "w", encoding="utf-8") as f:
-            json.dump(brands, f, ensure_ascii=False, indent=2)
-        st.cache_data.clear()
+        write_json_atomic(MASTER_BRAND_FILE, brands)
         return True
     except Exception as e:
         st.error(f"Gagal menyimpan file master_brand_rokok.json: {e}")
@@ -831,9 +814,7 @@ def save_master_team_brands(team_brands):
             str(team): [str(b).strip() for b in brands]
             for team, brands in team_brands.items()
         }
-        with open(MASTER_TEAM_BRAND_FILE, "w", encoding="utf-8") as f:
-            json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
-        st.cache_data.clear()
+        write_json_atomic(MASTER_TEAM_BRAND_FILE, cleaned_data)
         return True
     except Exception as e:
         st.error(f"❌ Gagal menyimpan ke `{MASTER_TEAM_BRAND_FILE}`: {e}")
@@ -850,9 +831,7 @@ def load_master_plat_kendaraan():
 
 
 def save_master_plat_kendaraan(plat_list):
-    with open(MASTER_PLAT_FILE, "w", encoding="utf-8") as f:
-        json.dump(plat_list, f, ensure_ascii=False, indent=2)
-    st.cache_data.clear()
+    write_json_atomic(MASTER_PLAT_FILE, plat_list)
 
 
 def load_master_spgs():
@@ -861,9 +840,7 @@ def load_master_spgs():
 
 
 def save_master_spgs(spgs):
-    with open(MASTER_SPG_FILE, "w", encoding="utf-8") as f:
-        json.dump(spgs, f, ensure_ascii=False, indent=2)
-    st.cache_data.clear()
+    write_json_atomic(MASTER_SPG_FILE, spgs)
 
 
 
@@ -1580,6 +1557,9 @@ def run_app():
 
     # --- GPS & GEOFENCING ---
     daftar_kecamatan = get_geo_districts(st.session_state["kota_kab"]) or ["Kecamatan Default"]
+    schedule_ok, _, _, daftar_kecamatan_terjadwal, _ = get_schedule_info_for_team(
+        st.session_state["user_spg"]
+    )
     loc = get_geolocation()
     detected_kecamatan = None
 
@@ -1595,8 +1575,11 @@ def run_app():
         point_user = Point(user_lon, user_lat)
         is_inside_geofence = False
 
-        sched_ok_gps, _, _, kec_terjadwal_gps, _ = get_schedule_info_for_team(st.session_state["user_spg"])
-        kandidat_kec_gps = [k for k in (kec_terjadwal_gps or []) if k] if sched_ok_gps else []
+        kandidat_kec_gps = (
+            [k for k in (daftar_kecamatan_terjadwal or []) if k]
+            if schedule_ok
+            else []
+        )
         if not kandidat_kec_gps:
             kandidat_kec_gps = [k for k in daftar_kecamatan if k != "Kecamatan Default"]
 
@@ -1625,10 +1608,7 @@ def run_app():
         if not checked_any_geom:
             is_inside_geofence = True
 
-    is_inside_geofence = True
-
     # --- JADWAL & TITIK KUNJUNGAN TERKUNCI ---
-    schedule_ok, _, _, daftar_kecamatan_terjadwal, _ = get_schedule_info_for_team(st.session_state["user_spg"])
     if not schedule_ok:
         daftar_kecamatan_terjadwal = daftar_kecamatan if daftar_kecamatan else ["Kecamatan Umum"]
     else:
