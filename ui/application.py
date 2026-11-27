@@ -2305,6 +2305,12 @@ def run_app():
     else:
         df_user = pd.DataFrame(columns=EXPECTED_COLUMNS)
 
+    active_spg_name = str(nama_spg_manual or "").strip()
+    if active_spg_name and "Nama_SPG" in df_user.columns:
+        df_user = df_user[
+            df_user["Nama_SPG"].astype(str).str.strip() == active_spg_name
+        ].copy()
+
     if not df_user.empty:
         df_user["Waktu_Dt"] = pd.to_datetime(df_user["Waktu"], errors="coerce")
         df_user["Tanggal"] = df_user["Waktu_Dt"].dt.strftime("%d-%m-%Y")
@@ -2317,11 +2323,6 @@ def run_app():
         current_month_str = today_dt.strftime("%m-%Y")
 
         df_today_u = df_user[df_user["Tanggal"] == today_str].copy()
-        active_spg_name = str(nama_spg_manual or "").strip()
-        if active_spg_name and "Nama_SPG" in df_today_u.columns:
-            df_today_u = df_today_u[
-                df_today_u["Nama_SPG"].astype(str).str.strip() == active_spg_name
-            ].copy()
         omset_hari_ini_u = int(df_today_u["Jumlah_Bungkus"].sum())
         konsumen_hari_ini_u = len(df_today_u)
 
